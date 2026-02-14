@@ -639,6 +639,7 @@ where
             message,
             message_format,
             settled,
+            delivery_tag,
         } = sendable;
 
         // serialize message
@@ -647,7 +648,7 @@ where
         Serializable(message).serialize(&mut serializer)?;
         let payload = payload.freeze();
 
-        self.send_payload(payload, message_format, settled, state, batchable)
+        self.send_payload(payload, message_format, settled, state, batchable, delivery_tag)
             .await
     }
 
@@ -669,6 +670,7 @@ where
             message,
             message_format,
             settled,
+            delivery_tag,
         } = sendable;
 
         // serialize message
@@ -677,7 +679,7 @@ where
         Serializable(message).serialize(&mut serializer)?;
         let payload = payload.freeze();
 
-        self.send_payload(payload, *message_format, *settled, state, batchable)
+        self.send_payload(payload, *message_format, *settled, state, batchable, delivery_tag.clone())
             .await
     }
 
@@ -688,6 +690,7 @@ where
         settled: Option<bool>,
         state: Option<DeliveryState>,
         batchable: bool,
+        custom_delivery_tag: Option<Vec<u8>>,
     ) -> Result<Settlement, E>
     where
         E: From<L::TransferError> + From<serde_amqp::Error>,
@@ -704,6 +707,7 @@ where
                 settled,
                 state,
                 batchable,
+                custom_delivery_tag,
             )
             .await?;
         Ok(settlement)

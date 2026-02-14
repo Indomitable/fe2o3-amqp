@@ -117,6 +117,7 @@ pub(crate) trait SenderLink: Link + LinkExt {
         // The delivery state should be attached on every transfer if specified
         state: Option<DeliveryState>,
         batchable: bool,
+        custom_delivery_tag: Option<Vec<u8>>,
     ) -> Result<Settlement, Self::TransferError>
     where
         Fut: Future<Output = Option<LinkFrame>> + Send;

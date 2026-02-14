@@ -6,6 +6,7 @@ use fe2o3_amqp_types::{
     definitions::{
         self, DeliveryNumber, DeliveryTag, Fields, Handle, Role, SequenceNo, TransferNumber,
     },
+    messaging::{Accepted, DeliveryState},
     performatives::{Attach, Begin, Detach, Disposition, End, Flow, Transfer},
     primitives::{Symbol, Uint},
     states::SessionState,
@@ -715,7 +716,14 @@ impl endpoint::Session for Session {
 
             let chunk_inds = consecutive_chunk_indices(&delivery_ids[..]);
 
-            let mut dispositions = Vec::with_capacity(chunk_inds.len());
+            // When the sender echoes back a disposition, it confirms that the
+            // operation was processed. Azure Service Bus always echoes with
+            // Accepted to signal success, regardless of the receiver's desired
+            // outcome (Rejected, Released, etc.). The receiver's outcome is an
+            // instruction; the echo is the acknowledgment.
+            let echo_state = Some(DeliveryState::Accepted(Accepted {}));
+
+            let mut dispositions = Vec::with_capacity(chunk_inds.len() + 1);
             let mut prev_ind = 0;
             for ind in chunk_inds {
                 let slice = &delivery_ids[prev_ind..ind];
@@ -724,11 +732,25 @@ impl endpoint::Session for Session {
                     first: slice[0],
                     last: slice.last().copied(),
                     settled: true,
-                    state: disposition.state.clone(),
+                    state: echo_state.clone(),
                     batchable: false,
                 };
                 dispositions.push(disposition);
                 prev_ind = ind;
+            }
+            // Handle the remaining tail chunk (including the single-element case
+            // where chunk_inds is empty and the entire slice is the tail)
+            if prev_ind < delivery_ids.len() {
+                let slice = &delivery_ids[prev_ind..];
+                let disposition = Disposition {
+                    role: Role::Sender,
+                    first: slice[0],
+                    last: slice.last().copied(),
+                    settled: true,
+                    state: echo_state.clone(),
+                    batchable: false,
+                };
+                dispositions.push(disposition);
             }
             Ok(Some(dispositions))
         }

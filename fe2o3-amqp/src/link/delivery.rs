@@ -191,6 +191,11 @@ pub struct Sendable<T> {
     /// Please note that this field will be neglected if the negotiated
     /// sender settle mode is NOT equal to `SenderSettleMode::Mixed`
     pub settled: Option<bool>,
+
+    /// Custom delivery tag. If set, this will be used instead of the
+    /// auto-generated monotonic counter. This is useful when the delivery
+    /// tag must carry a specific value (e.g. a lock token UUID).
+    pub delivery_tag: Option<Vec<u8>>,
 }
 
 impl Sendable<Uninitialized> {
@@ -210,6 +215,7 @@ where
             message: value.into(),
             message_format: MESSAGE_FORMAT,
             settled: None,
+            delivery_tag: None,
         }
     }
 }
@@ -227,6 +233,9 @@ pub struct Builder<T> {
 
     /// Indicates whether the message is considered settled by the sender
     pub settled: Option<bool>,
+
+    /// Custom delivery tag
+    pub delivery_tag: Option<Vec<u8>>,
     // pub batchable: bool,
 }
 
@@ -243,6 +252,7 @@ impl Builder<Uninitialized> {
             message: Uninitialized {},
             message_format: MESSAGE_FORMAT,
             settled: None,
+            delivery_tag: None,
             // batchable: false,
         }
     }
@@ -255,6 +265,7 @@ impl<State> Builder<State> {
             message: message.into(),
             message_format: self.message_format,
             settled: self.settled,
+            delivery_tag: self.delivery_tag,
             // batchable: self.batchable,
         }
     }
@@ -272,6 +283,12 @@ impl<State> Builder<State> {
         self.settled = settled.into();
         self
     }
+
+    /// Sets a custom delivery tag. If not set, the sender will auto-generate one.
+    pub fn delivery_tag(mut self, tag: impl Into<Vec<u8>>) -> Self {
+        self.delivery_tag = Some(tag.into());
+        self
+    }
 }
 
 impl<T> Builder<Message<T>> {
@@ -281,6 +298,7 @@ impl<T> Builder<Message<T>> {
             message: self.message,
             message_format: self.message_format,
             settled: self.settled,
+            delivery_tag: self.delivery_tag,
             // batchable: self.batchable,
         }
     }
