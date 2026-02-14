@@ -177,8 +177,20 @@ where
                     .await?;
             }
             SessionFrameBody::Disposition(disposition) => {
+                #[cfg(feature = "tracing")]
+                tracing::debug!(
+                    "Incoming disposition: role={:?} first={} last={:?} settled={} state={:?}",
+                    disposition.role, disposition.first, disposition.last, disposition.settled, disposition.state
+                );
                 if let Some(dispositions) = self.session.on_incoming_disposition(disposition)? {
+                    #[cfg(feature = "tracing")]
+                    tracing::debug!("Sending {} echo disposition(s)", dispositions.len());
                     for disposition in dispositions {
+                        #[cfg(feature = "tracing")]
+                        tracing::debug!(
+                            "Echo disposition: role={:?} first={} last={:?} settled={}",
+                            disposition.role, disposition.first, disposition.last, disposition.settled
+                        );
                         let disposition = self.session.on_outgoing_disposition(disposition)?;
                         self.outgoing
                             .send(disposition)

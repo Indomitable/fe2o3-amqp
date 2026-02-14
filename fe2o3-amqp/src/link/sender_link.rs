@@ -189,13 +189,17 @@ where
         settled: Option<bool>,
         state: Option<DeliveryState>,
         batchable: bool,
+        custom_delivery_tag: Option<Vec<u8>>,
     ) -> Result<Settlement, Self::TransferError>
     where
         Fut: Future<Output = Option<LinkFrame>> + Send,
     {
         let tag = self.get_delivery_tag_or_detached(writer, detached).await?;
-        // Delivery count is incremented when consuming credit
-        let delivery_tag = DeliveryTag::from(tag);
+        // Use custom delivery tag if provided, otherwise use auto-generated one
+        let delivery_tag = match custom_delivery_tag {
+            Some(custom_tag) => DeliveryTag::from(custom_tag),
+            None => DeliveryTag::from(tag),
+        };
 
         let transfer = self.generate_non_resuming_transfer_performative(
             delivery_tag,
